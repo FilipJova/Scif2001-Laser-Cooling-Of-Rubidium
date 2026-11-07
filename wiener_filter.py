@@ -191,3 +191,5 @@ if __name__ == "__main__":
     ap.add_argument("--out-png", default="wiener_spot_figure.png")
     a = ap.parse_args()
     run(a.trapped, a.background, a.psf_sigma, a.k, a.feather, a.out_tif, a.out_png)
+
+# %%

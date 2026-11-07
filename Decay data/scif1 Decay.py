@@ -1,10 +1,14 @@
 # %%
+from matplotlib.cm import binary
+from matplotlib.cm import binary
 import numpy as np
 from  pathlib import Path
 import matplotlib.pyplot as plt
 from scipy import stats
 from scipy.optimize import curve_fit
-
+from PIL import Image
+from scipy import ndimage as ndi
+import csv
 
 # %%
 import cv2  # still used to save images out
@@ -47,7 +51,7 @@ def extract_frames(video_path, frames_dir, overwrite=False, start=-1, end=-1, ev
         frames = vr.get_batch(frames_list).asnumpy()
 
         for index, frame in zip(frames_list, frames):  # lets loop through the frames until the end
-            save_path = os.path.join(frames_dir, video_filename, "{:010d}.jpg".format(index))  # create the save path
+            save_path = os.path.join(frames_dir, video_filename, "{:010d}.tif".format(index))  # create the save path
             if not os.path.exists(save_path) or overwrite:  # if it doesn't exist or we want to overwrite anyways
                 cv2.imwrite(save_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))  # save the extracted image
                 saved_count += 1  # increment our counter by one
@@ -57,7 +61,7 @@ def extract_frames(video_path, frames_dir, overwrite=False, start=-1, end=-1, ev
             frame = vr[index]  # read an image from the capture
             
             if index % every == 0:  # if this is a frame we want to write out based on the 'every' argument
-                save_path = os.path.join(frames_dir, video_filename, "{:010d}.jpg".format(index))  # create the save path
+                save_path = os.path.join(frames_dir, video_filename, "{:010d}.tif".format(index))  # create the save path
                 if not os.path.exists(save_path) or overwrite:  # if it doesn't exist or we want to overwrite anyways
                     cv2.imwrite(save_path, cv2.cvtColor(frame.asnumpy(), cv2.COLOR_RGB2BGR))  # save the extracted image
                     saved_count += 1  # increment our counter by one
@@ -89,16 +93,83 @@ def video_to_frames(video_path, frames_dir, overwrite=False, every=1):
 
     return os.path.join(frames_dir, video_filename)  # when done return the directory containing the frames
 
-# %% 
 
+# %%
+#script_dir = Path(__file__).parent.absolute()
+#file_path = script_dir.parent.parent / 'Video' / 'Decay 1_2.mp4'
+
+#if __name__ == '__main__':
+#    video_to_frames(video_path=file_path, frames_dir='Frames', overwrite=False, every=100)
+
+# %% 
+# 
+#import sys
+#sys.path.insert(0, str(script_dir.parent))  # add the scif1 folder to the path so we can import wiener_filter.py
+#import wiener_filter as ws
+
+#script_dir = Path(__file__).parent.absolute()
+#file_path = script_dir.parent.parent / 'Video' / '0.tif'
+#background_path = script_dir.parent.parent / 'Video' / 'Decay1_Background.tif'
+
+#ws.run(trapped_path=file_path, bgd_path=background_path, psf_sigma=0.0, k=3.0, feather=2.0,
+#        out_tif="spot_only.tif", out_png="wiener_spot_figure.png")
+
+# %%
+
+import sys
 script_dir = Path(__file__).parent.absolute()
-file_path = script_dir / 'Video' / 'Decay 1.mp4'
+sys.path.insert(0, str(script_dir.parent))  # add the scif1 folder to the path so we can import wiener_filter.py
+import wiener_filter as ws
+
+def process_frame(path, bgd_path, psf_sigma=0.0, peak_xy=None):
+    """Read peak at fixed position. peak_xy=(px, py) from first frame."""
+    img = ws.load_gray(path)
+    bgd = ws.load_gray(bgd_path)
+    D = img - bgd
+
+    sigma_n = ws.estimate_noise_sigma(D, (0, 0))
+    if not np.isfinite(sigma_n) or sigma_n < 1e-6:
+        sigma_n = 1e-6
+
+    filt, _ = ws.wiener_filter(D, sigma_n, psf_sigma=psf_sigma)
+    filt = np.nan_to_num(filt, nan=0.0, posinf=0.0, neginf=0.0)
+    filt = np.clip(filt, 0, None)
+
+    py, px = peak_xy
+    patch = filt[py-2:py+3, px-2:px+3]
+    val = patch.max()
+    return 0.0 if not np.isfinite(val) else val
+
 
 if __name__ == '__main__':
-    video_to_frames(video_path=file_path, frames_dir='Frames', overwrite=False, every=100)
+    video_path = str(script_dir.parent.parent / 'Video' / 'Decay 1_2.mp4')
+    background_path = str(script_dir.parent.parent / 'Video' / 'Decay1_Background.tif')
+    frames_dir = video_to_frames(video_path, 'Frames', overwrite=False, every=60)
 
+    frame_files = sorted(os.listdir(frames_dir))
 
+    # find peak position from the FIRST (brightest) frame
+    first = ws.load_gray(os.path.join(frames_dir, frame_files[0]))
+    bgd = ws.load_gray(background_path)
+    D0 = first - bgd
+    sm = ndi.gaussian_filter(D0, 4)
+    py, px = np.unravel_index(np.argmax(sm), sm.shape)
+    print(f"Fixed peak position: ({px}, {py})")
 
+    results = []
+    for i, fname in enumerate(frame_files):
+        fpath = os.path.join(frames_dir, fname)
+        peak = process_frame(fpath, background_path, peak_xy=(py, px))
+        results.append((fname, peak))
+        print(f"{fname}: peak = {peak:.2f}")
+
+    csv_path = "peak_luminosity(6f)2.csv"
+    with open(csv_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["frame", "peak_luminosity"])
+        writer.writerows(results)
+
+    print(f"\nSaved {len(results)} rows to {csv_path}")
 # %%
 na0 = 5.24*(10^6)
 
@@ -118,8 +189,3 @@ plt.ylabel("Atom count")
 plt.legend()
 plt.grid(True)
 plt.show()
-
-
-
-# %%
-
