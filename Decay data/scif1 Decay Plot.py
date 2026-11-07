@@ -17,20 +17,22 @@ csv_path = script_dir / 'peak_luminosity(6f)2.csv'
 data = np.append(data, np.loadtxt(csv_path, delimiter=',', usecols=(1,), skiprows=1))
 data = data[data > 1]
 
-print(data)
-
 time = np.arange(len(data)) *5  # Assuming each frame is 0.1 seconds apart
 
-def exponential_decay(t, A, tau, C):
-    return A * np.exp(-t / tau) + C
+def exponential_decay(t, A, tau):
+    return A * np.exp(-t / tau)
 
-p0 = (np.max(data), 1, np.min(data))  # Initial guess for A, tau, C
+p0 = (np.max(data), 1)  # Initial guess for A, tau
 popt, pcov = curve_fit(exponential_decay, time, data, p0=p0)
 
 tau = popt[1]
 tau_err = np.sqrt(np.diag(pcov))[1]  # Error propagation for tau
 
+tau_target = exponential_decay(popt[1], popt[0], popt[1])
+
 print(f"Fitted decay constant (tau): {tau:.3f} ± {tau_err:.3f} seconds")
+
+print(f"Fitted parameters: tau = {tau_target}")
 
 plt.figure(figsize=(10, 6))
 plt.scatter(time, data, label='Data', s=10)
