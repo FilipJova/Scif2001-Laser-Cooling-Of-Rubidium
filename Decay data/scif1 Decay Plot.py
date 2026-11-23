@@ -8,7 +8,7 @@ from scipy.optimize import curve_fit
 import csv
 
 script_dir = Path(__file__).parent.absolute()
-csv_path = script_dir / 'Decay2_1.csv'
+csv_path = script_dir / 'Decay2_1_shifted.csv'
 
 data = np.loadtxt(csv_path, delimiter=',', usecols=(1,), skiprows=1)
 
