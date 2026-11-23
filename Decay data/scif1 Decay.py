@@ -142,8 +142,8 @@ def process_frame(path, bgd_path, psf_sigma=0.0, peak_xy=None):
 
 
 if __name__ == '__main__':
-    video_path = str(script_dir.parent.parent / 'Video' / 'Decay 1_2.mp4')
-    background_path = str(script_dir.parent.parent / 'Video' / 'Decay1_Background.tif')
+    video_path = str(script_dir.parent.parent / 'Video' / 'decay_0001.mp4')
+    background_path = str(script_dir.parent.parent / 'Video' / 'decay_0002.tif')
     frames_dir = video_to_frames(video_path, 'Frames', overwrite=False, every=60)
 
     frame_files = sorted(os.listdir(frames_dir))
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         results.append((fname, peak))
         print(f"{fname}: peak = {peak:.2f}")
 
-    csv_path = "peak_luminosity(6f)2.csv"
+    csv_path = "Decay2_1.csv"
     with open(csv_path, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["frame", "peak_luminosity"])

@@ -8,16 +8,16 @@ from scipy.optimize import curve_fit
 import csv
 
 script_dir = Path(__file__).parent.absolute()
-csv_path = script_dir / 'peak_luminosity(6f).csv'
+csv_path = script_dir / 'Decay2_1.csv'
 
 data = np.loadtxt(csv_path, delimiter=',', usecols=(1,), skiprows=1)
 
-csv_path = script_dir / 'peak_luminosity(6f)2.csv'
+csv_path = script_dir / 'Decay2_2.csv'
 
 data = np.append(data, np.loadtxt(csv_path, delimiter=',', usecols=(1,), skiprows=1))
 data = data[data > 1]
 
-time = np.arange(len(data)) *5  # Assuming each frame is 0.1 seconds apart
+time = np.arange(len(data)) *3  # Assuming each frame is 0.1 seconds apart
 
 def exponential_decay(t, A, tau):
     return A * np.exp(-t / tau)
